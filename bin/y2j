@@ -1,0 +1,53 @@
+#!/usr/bin/env python3
+
+import os
+import re
+import sys
+sys.dont_write_bytecode = True
+
+import json
+from ruamel import yaml
+
+ACTION = os.path.basename(os.path.abspath(__file__))
+
+def str_presenter(dumper, data):
+    str_tag = "tag:yaml.org,2002:str"
+    if len(data.splitlines()) > 1:
+        return dumper.represent_scalar(str_tag, data, style="|")
+    return dumper.represent_scalar(str_tag, data)
+
+yaml.add_representer(str, str_presenter)
+
+def list_presenter(dumper, data):
+    list_tag = "tag:yaml.org,2002:seq"
+    if len(data) > 0:
+        if all([isinstance(item, str) for item in data]):
+            return dumper.represent_sequence(list_tag, data, flow_style=False)
+    return dumper.represent_sequence(list_tag, data)
+
+yaml.add_representer(list, list_presenter)
+
+def yaml_format(obj):
+    class MyDumper(yaml.Dumper):
+        def represent_mapping(self, tag, mapping, flow_style=False):
+            return yaml.Dumper.represent_mapping(self, tag, mapping, flow_style)
+
+    return yaml.dump(obj, Dumper=MyDumper).strip()
+
+def main(args):
+    content = sys.stdin.read().strip()
+    {
+        'y2j': y2j,
+        'j2y': j2y,
+    }[ACTION](content)
+
+def y2j(content):
+    obj = yaml.safe_load(content)
+    print(json.dumps(obj, indent=4, sort_keys=True))
+
+def j2y(content):
+    obj = json.loads(content)
+    print(yaml_format(obj))
+
+if __name__ == '__main__':
+    main(sys.argv[1:])
